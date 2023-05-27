@@ -1,3 +1,7 @@
+use std::ops::Range;
+
+use itertools::Itertools;
+
 use crate::error::{Error, Result};
 
 #[derive(Debug, Clone)]
@@ -7,21 +11,37 @@ pub struct Scanner {
     pos: usize,
 }
 
+impl From<&str> for Scanner {
+    fn from(value: &str) -> Self {
+        Self::new(value)
+    }
+}
+
+impl From<String> for Scanner {
+    fn from(value: String) -> Self {
+        Self::new(value)
+    }
+}
+
+impl From<&String> for Scanner {
+    fn from(value: &String) -> Self {
+        Self::new(value)
+    }
+}
+
 impl Scanner {
     pub fn new<T>(input: T) -> Self
     where
         T: Into<String>,
     {
         let input: String = input.into();
+        let chars = input.chars().collect_vec();
+        let len = chars.len();
 
-        Self {
-            chars: input.chars().collect(),
-            len: input.len(),
-            pos: 0,
-        }
+        Self { len, chars, pos: 0 }
     }
 
-    pub fn check_pos(&self, pos: usize) -> Result<()> {
+    fn check(&self, pos: usize) -> Result<()> {
         if pos < self.len {
             Ok(())
         } else {
@@ -30,34 +50,34 @@ impl Scanner {
     }
 
     pub fn check_len(&self, len: usize) -> Result<()> {
-        self.check_pos(self.pos + len - 1)
+        self.check(self.pos + len - 1)
     }
 
-    pub fn is_eot(&self) -> bool {
-        self.check_pos(self.pos).is_err()
+    pub fn is_eof(&self) -> bool {
+        self.check(self.pos).is_err()
     }
 
     pub fn get_pos(&self) -> usize {
         self.pos
     }
 
-    pub fn read_string(&mut self, len: usize) -> Result<String> {
-        let s = self.peek_string(len)?;
+    pub fn read_len(&mut self, len: usize) -> Result<String> {
+        let s = self.peek_len(len)?;
 
-        self.skip_chars(len)?;
+        self.skip_len(len)?;
 
         Ok(s)
     }
 
-    pub fn peek_string(&self, len: usize) -> Result<String> {
-        self.peek_string_with_offset(0, len)
+    pub fn peek_len(&self, len: usize) -> Result<String> {
+        self.peek_range(0..len)
     }
 
-    pub fn peek_string_with_offset(&self, offset: usize, len: usize) -> Result<String> {
-        let start = self.pos + offset;
-        let end = start + len;
+    pub fn peek_range(&self, i: Range<usize>) -> Result<String> {
+        let start = self.pos + i.start;
+        let end = start + i.end;
 
-        self.check_pos(end - 1)?;
+        self.check(end - 1)?;
 
         Ok(self
             .chars
@@ -67,19 +87,13 @@ impl Scanner {
             .collect())
     }
 
-    pub fn peek_char_offset(&self, offset: usize) -> Result<char> {
-        let pos = self.pos + offset;
+    pub fn peek(&self) -> Result<char> {
+        self.check(self.pos)?;
 
-        self.check_pos(pos)?;
-
-        self.chars.get(pos).ok_or(Error::OutOfRange).copied()
+        self.chars.get(self.pos).ok_or(Error::OutOfRange).copied()
     }
 
-    pub fn peek_char(&self) -> Result<char> {
-        self.peek_char_offset(0)
-    }
-
-    pub fn skip_chars(&mut self, len: usize) -> Result<()> {
+    pub fn skip_len(&mut self, len: usize) -> Result<()> {
         self.check_len(len)?;
 
         self.pos += len;
@@ -87,14 +101,14 @@ impl Scanner {
         Ok(())
     }
 
-    pub fn skip_char(&mut self) -> Result<()> {
-        self.skip_chars(1)
+    pub fn skip(&mut self) -> Result<()> {
+        self.skip_len(1)
     }
 
-    pub fn read_char(&mut self) -> Result<char> {
-        let ch = self.peek_char()?;
+    pub fn read(&mut self) -> Result<char> {
+        let ch = self.peek()?;
 
-        self.skip_char()?;
+        self.skip()?;
 
         Ok(ch)
     }

@@ -1,0 +1,6 @@
+let greet = (name = "world") {
+    print("hello {}".format(name));
+};
+
+greet(); // hello world
+greet("foo"); // hello foo
